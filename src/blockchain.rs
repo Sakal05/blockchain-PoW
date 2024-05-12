@@ -1,10 +1,10 @@
 use serde::{ Deserialize, Serialize };
 use crate::block::Block;
 use crate::transaction::Transaction;
-use std::{ time::SystemTime };
+use std::time::SystemTime;
 use crate::account::Account;
 use crate::wallet::Wallet;
-use anyhow::{ Result, anyhow };
+use anyhow::Result;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Blockchain {
@@ -51,7 +51,7 @@ impl Blockchain {
             lastest_block.nonce += 1;
             lastest_block.mine_block_with_capacity(self.difficulty, &self.accounts, false);
             let prev_block = lastest_block.clone();
-            println!("Nonce: {}", &lastest_block.nonce);
+            // println!("Nonce: {}", &lastest_block.nonce);
             // Create a new block for the incoming transaction
             let new_block = &mut self.create_new_block(prev_block);
             self.chain.push(new_block.clone());
@@ -61,7 +61,7 @@ impl Blockchain {
             let genesis_block = &mut Blockchain::create_genesis_block();
             genesis_block.nonce += 1;
 
-            println!("GenesisBlock: {:?}", &genesis_block);
+            // println!("GenesisBlock: {:?}", &genesis_block);
 
             self.chain.push(genesis_block.clone());
             // Add the transaction to the genesis block's transactions
@@ -69,6 +69,46 @@ impl Blockchain {
             return Ok(transaction.clone());
         }
     }
+
+    // pub asycn fn start_mining_loop(&mut self, interval_seconds: u64) {
+    //     let blockchain_ref = Arc::new(Mutex::new(self.clone()));
+
+    //     thread::spawn(move || {
+    //         loop {
+    //             thread::sleep(Duration::from_secs(interval_seconds));
+    //             let mut blockchain = blockchain_ref.lock().await;
+    //             blockchain.mine_pending_transactions();
+    //         }
+    //     });
+    // }
+
+    // Mine pending transactions into a new block
+    // fn mine_pending_transactions(&mut self) {
+    //     if self.pending_transactions.is_empty() {
+    //         return;
+    //     }
+
+    //     let latest_block = self.get_latest_block().unwrap_or_else(|| {
+    //         let genesis_block = Blockchain::create_genesis_block();
+    //         self.chain.push(genesis_block.clone());
+    //         genesis_block
+    //     });
+
+    //     let mut new_block = self.create_new_block(latest_block.clone());
+
+    //     while
+    //         !self.pending_transactions.is_empty() &&
+    //         new_block.transactions.len() < new_block.block_capacity
+    //     {
+    //         let transaction = self.pending_transactions.remove(0);
+    //         new_block.transactions.push(transaction);
+    //     }
+
+    //     new_block.mine_block_with_capacity(self.difficulty, &self.accounts, false);
+    //     self.chain.push(new_block);
+
+    //     println!("Block mined: {:?}", new_block);
+    // }
 
     // Validate the integrity of the blockchain
     pub fn is_chain_valid(&self) -> bool {
@@ -91,12 +131,6 @@ impl Blockchain {
 
                 return false;
             }
-            // for transaction in &block.transactions {
-            //     if !transaction.is_valid(&self.accounts) {
-            //         println!("tx invalid: {:#?}", transaction);
-            //         return false;
-            //     }
-            // }
         }
         true
     }

@@ -8,7 +8,6 @@ use crate::blockchain::Blockchain;
 use crate::transaction::Transaction;
 use crate::account::Account;
 use crate::wallet::Wallet;
-
 use sha256::digest;
 use tower_http::cors::CorsLayer;
 use axum::{
@@ -60,6 +59,16 @@ async fn main() -> anyhow::Result<()> {
     let addr = SocketAddr::from(([0, 0, 0, 0], port.parse().unwrap()));
     let server1 = task::spawn(async move {
         axum_server::bind(addr).serve(app.into_make_service()).await.unwrap();
+        // loop {
+        //     // Asynchronously sleep for the specified interval
+        //     time::sleep(Duration::from_secs(60)).await;
+
+        //     // Obtain a mutable reference to the blockchain through the mutex
+        //     let mut blockchain = blockchain_ref;
+
+        //     // Mine pending transactions
+        //     blockchain.mine_pending_transactions();
+        // }
     });
     server1.await.unwrap();
 
@@ -105,7 +114,7 @@ fn initialize(blockchain: &mut Blockchain) {
 
     blockchain.add_transaction(transfer_from_w1_to_w2);
 
-    println!("Starting the miner...");
+    println!("🚀 Welcome to Duma Mining Simulator! 🚀");
     // blockchain.mine_pending_transactions(private_key.public_key(&secp), private_key);
 
     // Example of blockchain validation
@@ -133,7 +142,7 @@ fn generate_transactions(
         blockchain.accounts.initialize(&sender_pk.to_string());
         blockchain.accounts.initialize(&receiver_pk.to_string());
         let latest_block = blockchain.get_latest_block().expect("no block available");
-        println!("block nonce: {}", latest_block.nonce);
+        // println!("block nonce: {}", latest_block.nonce);
         let mut transaction = Transaction {
             from_address: sender_pk.to_string(),
             to_address: receiver_pk.to_string(),

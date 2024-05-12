@@ -32,30 +32,21 @@ impl Block {
 
     pub fn execute_txn(&self, blockchain: &mut Blockchain) {
         self.transactions.iter().for_each(|txn| {
-            println!("Tx Detail: {:?}", txn.status);
-            // Transfer amount
             if txn.status.eq(&transaction::TxStatus::FAILED) {
                 return;
             }
             blockchain.accounts.transfer(&txn.from_address, &txn.to_address, &txn.amount);
-            println!("Sender balance: {:?}", blockchain.accounts.get_balance(&txn.from_address));
-            println!(
-                "Balance after transfer: {}\n\n",
-                blockchain.accounts.get_balance(&txn.to_address)
-            );
-
-            // Transfer fee
         });
     }
 
     pub fn mine_block_with_capacity(&mut self, difficulty: usize, account: &Account, force: bool) {
-        println!("Start minning");
+        println!("\n⛏️  Let's start mining and simulating transactions!\n");
         if self.mined {
             return; // Block already mined, exit early
         }
         // Check if the number of transactions has reached the block capacity
         if force {
-            println!("force: {}", force);
+            // println!("force: {}", force);
             if self.mined == false {
                 self.hash = self.calculate_hash(); // Initialize hash with the calculated hash
                 while &self.hash[..difficulty] != &"0".repeat(difficulty) {
@@ -66,12 +57,12 @@ impl Block {
                 // println!("Block mined: {}", self.hash);
                 // println!("Hash: {}", self.calculate_hash());
                 for transaction in &mut self.transactions {
-                    println!("Mined transaction: {:?}", &transaction);
+                    // println!("Mined transaction: {:?}", &transaction);
                     if transaction.is_valid(account) == false {
-                        println!("tx invalid: {:#?}", transaction);
+                        // println!("tx invalid: {:#?}", transaction);
                         transaction.status = transaction::TxStatus::FAILED;
                     } else {
-                        println!("Valid transaction: {:?}", transaction);
+                        // println!("Valid transaction: {:?}", transaction);
                         transaction.status = transaction::TxStatus::SUCCESS;
                     }
                 }
@@ -92,7 +83,7 @@ impl Block {
                 // println!("Hash: {}", self.calculate_hash());
 
                 for transaction in &mut self.transactions {
-                    println!("Mined transaction: {:?}", &transaction);
+                    // println!("Mined transaction: {:?}", &transaction);
 
                     if !transaction.is_valid(account) {
                         // println!("tx invalid: {:#?}", transaction);
@@ -103,6 +94,7 @@ impl Block {
                 }
                 self.mined = true;
                 self.hash = self.calculate_hash();
+                println!("🧱 Mining block {:?}...⛏️", self.hash);
             }
         }
     }

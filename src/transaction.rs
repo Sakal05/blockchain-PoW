@@ -38,8 +38,8 @@ impl Transaction {
         let message: Message = Message::from_digest_slice(&decode_message).expect("32 bytes");
         let sender_balance = account.get_balance(&self.from_address);
         if sender_balance < &self.amount {
-            println!("\n =====sender tx: {:?}", &self);
-            println!("Sender account: {:?}", &sender_balance);
+            // println!("\n =====sender tx: {:?}", &self);
+            // println!("Sender account: {:?}", &sender_balance);
             return false;
         }
         if let Some(signature) = &self.signature {
