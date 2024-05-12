@@ -1,9 +1,9 @@
 use secp256k1::{ ecdsa::Signature, Message, PublicKey, Secp256k1, SecretKey };
 use serde::{ Deserialize, Serialize };
 
-use crate::{ block::Block, blockchain::{ self, Blockchain } };
+use crate::{ account::Account, block::Block, blockchain::{ self, Blockchain } };
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum TxStatus {
     PENDING,
     FAILED,
@@ -19,6 +19,7 @@ pub struct Transaction {
     pub pub_key: PublicKey,
     pub signature: Option<Signature>, // Signature will be added during signing
     pub status: TxStatus,
+    pub nonce: u32,
 }
 
 impl Transaction {
@@ -31,11 +32,16 @@ impl Transaction {
     }
 
     // Validate transaction signature
-    pub fn is_valid(&self) -> bool {
+    pub fn is_valid(&self, account: &Account) -> bool {
         let secp = Secp256k1::verification_only();
         let decode_message = hex::decode(&self.msg).expect("Failed to decode message");
         let message: Message = Message::from_digest_slice(&decode_message).expect("32 bytes");
-
+        let sender_balance = account.get_balance(&self.from_address);
+        if sender_balance < &self.amount {
+            println!("\n =====sender tx: {:?}", &self);
+            println!("Sender account: {:?}", &sender_balance);
+            return false;
+        }
         if let Some(signature) = &self.signature {
             // println!("with signature: {}", signature);
             // Verify signature (not implemented here)

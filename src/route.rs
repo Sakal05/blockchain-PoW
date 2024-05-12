@@ -4,9 +4,8 @@ use serde::{ Deserialize, Serialize };
 use sha256::digest;
 use crate::{ blockchain::Blockchain, transaction::{ self, Transaction }, wallet::Wallet };
 use axum::{ extract::State, http::StatusCode, response::IntoResponse, Json };
-// use crate::AppState;
-use std::{ borrow::BorrowMut, str::FromStr, sync::Arc };
-use tokio::{ sync::Mutex, task };
+use std::{ str::FromStr, sync::Arc };
+use tokio::sync::Mutex;
 
 use tracing::debug;
 
@@ -23,8 +22,6 @@ pub fn transaction_routes(app_state: Arc<Mutex<Blockchain>>) -> Router {
         .route("/transaction/create", post(add_transaction))
         .route("/transactions", get(get_all_txs))
         .route("/transaction/:hash", get(get_tx_by_hash))
-        // .route("/wallet/:public_key", get(get_wallet_details))
-        // .route("/wallet/:public_key/balance", get(get_wallet_balance))
         .with_state(app_state)
 }
 
@@ -107,8 +104,9 @@ async fn add_transaction(
     }
     debug!("Sender pk: {}", public_key);
     debug!("Sender payload address: {:?}", payload);
-
-    let message = digest(format!("{}{}", public_key.to_string(), payload.amount));
+    let mut buf = [0u8; 32];
+    getrandom::getrandom(&mut buf).unwrap();
+    let message = digest(format!("{:?}{}{}", buf, public_key.to_string(), payload.amount));
     let message_bytes = message[0..32].as_bytes();
 
     let mut msg = [0u8; 32];
@@ -116,6 +114,7 @@ async fn add_transaction(
 
     blockchain.accounts.initialize(&public_key.to_string());
     blockchain.accounts.initialize(&payload.to_address);
+    let latest_block = blockchain.get_latest_block().expect("No block available");
     let encode_message = hex::encode(msg);
     let mut transaction = Transaction {
         from_address: public_key.to_string(),
@@ -125,6 +124,7 @@ async fn add_transaction(
         amount: payload.amount,
         signature: None,
         status: transaction::TxStatus::PENDING,
+        nonce: latest_block.nonce,
     };
 
     transaction.sign_transaction(&sk);

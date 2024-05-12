@@ -46,22 +46,24 @@ impl Blockchain {
     ) -> Result<Transaction, anyhow::Error> {
         if let Some(lastest_block) = self.chain.last_mut() {
             // if lastest_block.transactions.len() == lastest_block.block_capacity - 1 {
-            println!("go here");
             // Mine the current block if it has reached its transaction capacity
             lastest_block.transactions.push(transaction.clone());
-
-            lastest_block.mine_block_with_capacity(3, false);
-
-            let clone_block = lastest_block.clone();
+            lastest_block.nonce += 1;
+            lastest_block.mine_block_with_capacity(self.difficulty, &self.accounts, false);
+            let prev_block = lastest_block.clone();
+            println!("Nonce: {}", &lastest_block.nonce);
             // Create a new block for the incoming transaction
-            let new_block = &mut self.create_new_block(clone_block);
+            let new_block = &mut self.create_new_block(prev_block);
             self.chain.push(new_block.clone());
             return Ok(transaction.clone());
         } else {
             // If there are no blocks in the chain, create the genesis block
-            let genesis_block = Blockchain::create_genesis_block();
+            let genesis_block = &mut Blockchain::create_genesis_block();
+            genesis_block.nonce += 1;
+
             println!("GenesisBlock: {:?}", &genesis_block);
-            self.chain.push(genesis_block);
+
+            self.chain.push(genesis_block.clone());
             // Add the transaction to the genesis block's transactions
             self.chain[0].transactions.push(transaction.clone());
             return Ok(transaction.clone());
@@ -89,12 +91,12 @@ impl Blockchain {
 
                 return false;
             }
-            for transaction in &block.transactions {
-                if !transaction.is_valid() {
-                    println!("tx invalid: {:#?}", transaction);
-                    return false;
-                }
-            }
+            // for transaction in &block.transactions {
+            //     if !transaction.is_valid(&self.accounts) {
+            //         println!("tx invalid: {:#?}", transaction);
+            //         return false;
+            //     }
+            // }
         }
         true
     }

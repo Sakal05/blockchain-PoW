@@ -19,18 +19,13 @@ use axum::{
 use tokio::{ sync::Mutex, task };
 use std::{ net::SocketAddr, sync::Arc };
 
-// #[derive(Debug, Clone)]
-// pub struct AppState {
-//     blockchain: Arc<Mutex<Blockchain>>,
-// }
-
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     let mut blockchain = Blockchain {
         chain: vec![Blockchain::create_genesis_block()],
         difficulty: 3,
         pending_transactions: vec![],
-        mining_reward: 100.0,
+        mining_reward: 50.0,
         accounts: Account::new(),
         wallet: Wallet::new(),
     };
@@ -72,7 +67,7 @@ async fn main() -> anyhow::Result<()> {
 }
 
 fn initialize(blockchain: &mut Blockchain) {
-    let num_transactions = 10;
+    let num_transactions = 15;
     let transactions = generate_transactions(num_transactions, blockchain);
     for (_index, transaction) in transactions.iter().enumerate() {
         // println!("Transaction {}: {:?}", index + 1, transaction);
@@ -81,8 +76,13 @@ fn initialize(blockchain: &mut Blockchain) {
 
     let (w_pk1, w_sk1) = Wallet::generate_wallet();
     let (w_pk2, _w_sk2) = Wallet::generate_wallet();
+    let mut buf = [0u8; 32];
+    getrandom::getrandom(&mut buf).unwrap();
+    let latest_block = blockchain.get_latest_block().expect("no block available");
+    let new_nonce = latest_block.nonce;
+    println!("ran block nonce: {:?}", buf);
 
-    let message = digest(format!("{}{}", w_pk1.to_string(), 10.0));
+    let message = digest(format!("{:?}{}{}", buf, w_pk1.to_string(), 10.0));
     let message_bytes = message[0..32].as_bytes();
 
     let mut msg = [0u8; 32];
@@ -91,7 +91,6 @@ fn initialize(blockchain: &mut Blockchain) {
 
     blockchain.accounts.initialize(&w_pk1.to_string());
     blockchain.accounts.initialize(&w_pk2.to_string());
-
     let mut transfer_from_w1_to_w2 = Transaction {
         from_address: w_pk1.to_string(),
         to_address: w_pk2.to_string(),
@@ -100,6 +99,7 @@ fn initialize(blockchain: &mut Blockchain) {
         amount: 30.0,
         signature: None,
         status: transaction::TxStatus::PENDING,
+        nonce: new_nonce,
     };
     transfer_from_w1_to_w2.sign_transaction(&w_sk1);
 
@@ -123,15 +123,17 @@ fn generate_transactions(
     let (sender_pk, sender_sk) = Wallet::generate_wallet();
     let (receiver_pk, _receiver_sk) = Wallet::generate_wallet();
     for _ in 0..num_transactions {
-        let message = digest(format!("{}{}", sender_pk.to_string(), 10.0));
+        let mut buf = [0u8; 32];
+        getrandom::getrandom(&mut buf).unwrap();
+        let message = digest(format!("{:?}{}{}", buf, sender_pk.to_string(), 10.0));
         let message_bytes = message[0..32].as_bytes();
 
         let mut msg = [0u8; 32];
         msg.copy_from_slice(&message_bytes);
-
         blockchain.accounts.initialize(&sender_pk.to_string());
         blockchain.accounts.initialize(&receiver_pk.to_string());
-
+        let latest_block = blockchain.get_latest_block().expect("no block available");
+        println!("block nonce: {}", latest_block.nonce);
         let mut transaction = Transaction {
             from_address: sender_pk.to_string(),
             to_address: receiver_pk.to_string(),
@@ -140,6 +142,7 @@ fn generate_transactions(
             amount: 10.0,
             signature: None,
             status: transaction::TxStatus::PENDING,
+            nonce: latest_block.nonce,
         };
 
         transaction.sign_transaction(&sender_sk);
