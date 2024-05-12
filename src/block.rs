@@ -38,26 +38,45 @@ impl Block {
     //     println!("Block mined: {}", self.hash);
     // }
 
-    pub fn execute_txn(&mut self, blockchain: &mut Blockchain) {
+    pub fn execute_txn(&self, blockchain: &mut Blockchain) {
         self.transactions.iter().for_each(|txn| {
+            println!("Tx Detail: {:?}", txn);
             // Transfer amount
             blockchain.accounts.transfer(&txn.from_address, &txn.to_address, &txn.amount);
+            println!("Sender balance: {:?}", blockchain.accounts.get_balance(&txn.from_address));
+            println!(
+                "Balance after transfer: {}\n\n",
+                blockchain.accounts.get_balance(&txn.to_address)
+            );
+
             // Transfer fee
         });
     }
 
-    pub fn mine_block_with_capacity(&mut self, difficulty: usize) {
+    pub fn mine_block_with_capacity(&mut self, difficulty: usize, force: bool) {
         println!("Start minning");
         // Check if the number of transactions has reached the block capacity
-        if self.transactions.len() == self.block_capacity && self.mined == false {
-            self.hash = self.calculate_hash(); // Initialize hash with the calculated hash
-            while &self.hash[..difficulty] != &"0".repeat(difficulty) {
-                // println!("block hash: {}", self.hash);
-                self.nonce += 1;
-                self.hash = self.calculate_hash(); // Recalculate hash with updated nonce
+        if force {
+            if self.mined == false {
+                self.hash = self.calculate_hash(); // Initialize hash with the calculated hash
+                while &self.hash[..difficulty] != &"0".repeat(difficulty) {
+                    // println!("block hash: {}", self.hash);
+                    self.nonce += 1;
+                    self.hash = self.calculate_hash(); // Recalculate hash with updated nonce
+                }
+                println!("Block mined: {}", self.hash);
             }
-            println!("Block mined: {}", self.hash);
-            // self.execute_txn(blockchain)
+        } else {
+            if self.transactions.len() == self.block_capacity && self.mined == false {
+                self.hash = self.calculate_hash(); // Initialize hash with the calculated hash
+                while &self.hash[..difficulty] != &"0".repeat(difficulty) {
+                    // println!("block hash: {}", self.hash);
+                    self.nonce += 1;
+                    self.hash = self.calculate_hash(); // Recalculate hash with updated nonce
+                }
+                println!("Block mined: {}", self.hash);
+                // self.execute_txn(blockchain)
+            }
         }
     }
 }

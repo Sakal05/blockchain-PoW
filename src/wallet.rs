@@ -1,6 +1,6 @@
 use crate::blockchain::Blockchain;
 use serde::{ Deserialize, Serialize };
-use secp256k1::{ rand, Secp256k1, PublicKey };
+use secp256k1::{ rand, Secp256k1, PublicKey, SecretKey };
 use secp256k1::{ Keypair };
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -18,7 +18,7 @@ impl Wallet {
         }
     }
 
-    pub fn generate_wallet() {
+    pub fn generate_wallet() -> (PublicKey, SecretKey) {
         let secp = Secp256k1::new();
         let (secret_key, public_key) = secp.generate_keypair(&mut rand::thread_rng());
         // let keypair = Keypair::from_secret_key(&secp, &secret_key);
@@ -26,6 +26,7 @@ impl Wallet {
         let key_pair = Keypair::from_secret_key(&secp, &secret_key);
         println!("Public key: {}", public_key);
         println!("Your key pair is: {:?}", key_pair);
+        (public_key, secret_key)
     }
 
     pub fn get_public_key(&mut self) -> String {

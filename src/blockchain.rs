@@ -44,17 +44,17 @@ impl Blockchain {
         // let lastest_block = self.chain.last();
 
         if let Some(lastest_block) = self.chain.last_mut() {
-            if lastest_block.transactions.len() == lastest_block.block_capacity {
+            if lastest_block.transactions.len() == lastest_block.block_capacity - 1 {
                 println!("go here");
                 // Mine the current block if it has reached its transaction capacity
+                lastest_block.mine_block_with_capacity(3, false);
+                lastest_block.transactions.push(transaction.clone());
 
-                lastest_block.mine_block_with_capacity(2);
-                // lastest_block.execute_txn(self);
+                let clone_block = lastest_block.clone();
                 // Create a new block for the incoming transaction
-                let new_block = &mut self.create_new_block();
-                new_block.transactions.push(transaction.clone());
+                let new_block = &mut self.create_new_block(clone_block);
                 self.chain.push(new_block.clone());
-                println!("Should go to new block: {:?}", &transaction);
+                // println!("Should go to new block: {:?}", &transaction);
             } else {
                 // println!("New tx: {:?}", &transaction);
                 // Add the transaction to the current block's transactions
@@ -68,40 +68,6 @@ impl Blockchain {
             self.chain[0].transactions.push(transaction);
         }
     }
-
-    // // Mine pending transactions into a new block
-    // pub fn mine_pending_transactions(&mut self, pub_key: PublicKey, private_key: SecretKey) {
-    //     let message = digest(format!("{}{}", pub_key.to_string(), self.mining_reward));
-    //     let message_bytes = message[0..32].as_bytes();
-
-    //     // Create a fixed-size array for the message
-    //     let mut msg = [0u8; 32];
-    //     msg.copy_from_slice(&message_bytes);
-
-    //     let mut reward_transaction = Transaction {
-    //         from_address: String::new(),
-    //         to_address: pub_key.to_string(),
-    //         amount: self.mining_reward,
-    //         msg,
-    //         signature: None,
-    //         pub_key,
-    //     };
-    //     reward_transaction.sign_transaction(&private_key);
-    //     self.pending_transactions.push(reward_transaction);
-
-    //     let mut block = Block {
-    //         block_capacity: 10,
-    //         timestamp: SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs(),
-    //         transactions: self.pending_transactions.clone(),
-    //         previous_hash: self.get_latest_block().unwrap().hash.clone(),
-    //         hash: String::new(),
-    //         nonce: 0,
-    //     };
-
-    //     block.mine_block(self.difficulty);
-    //     self.chain.push(block);
-    //     self.pending_transactions.clear();
-    // }
 
     // Validate the integrity of the blockchain
     pub fn is_chain_valid(&self) -> bool {
@@ -138,15 +104,19 @@ impl Blockchain {
         chain.iter().for_each(|block| self.execute_txn(block));
     }
 
-    fn execute_txn(&mut self, block: &Block) {
+    pub fn execute_txn(&mut self, block: &Block) {
         block.transactions.iter().for_each(|txn| {
             // Transfer amount
+            println!("Txn: {:?}", txn);
             self.accounts.transfer(&txn.from_address, &txn.to_address, &txn.amount);
             // Transfer fee
+            println!("Balance after transfer: {}", self.accounts.get_balance(&txn.from_address));
+            println!("Balance after transfer: {}", self.accounts.get_balance(&txn.to_address));
         });
     }
 
-    fn create_new_block(&self) -> Block {
+    fn create_new_block(&mut self, block: Block) -> Block {
+        block.execute_txn(self);
         Block {
             block_capacity: 10,
             timestamp: SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs(),

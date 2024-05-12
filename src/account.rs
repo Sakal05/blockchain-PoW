@@ -33,7 +33,8 @@ impl Account {
 
     pub fn initialize(&mut self, address: &String) {
         if !self.balances.contains_key(address) {
-            self.balances.insert(address.to_string(), 0.0);
+            println!("New account: {}", address);
+            self.balances.insert(address.to_string(), 100.0);
             self.accounts.push(address.to_string());
         }
     }
