@@ -54,8 +54,16 @@ impl Account {
         *self.balances.get_mut(from).unwrap() -= amount;
     }
 
-    pub fn get_balance(&mut self, address: &String) -> &f64 {
-        self.initialize(address);
+    pub fn get_balance(&self, address: &String) -> &f64 {
+        // self.initialize(address);
         self.balances.get(address).unwrap()
+    }
+
+    pub fn is_valid_address(&self, address: &String) -> bool {
+        if !self.balances.contains_key(address) {
+            return false;
+        } else {
+            return true;
+        }
     }
 }

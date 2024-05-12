@@ -16,8 +16,13 @@ use axum::{
     routing::get,
     Router,
 };
-use tokio::task;
-use std::net::SocketAddr;
+use tokio::{ sync::Mutex, task };
+use std::{ net::SocketAddr, sync::Arc };
+
+// #[derive(Debug, Clone)]
+// pub struct AppState {
+//     blockchain: Arc<Mutex<Blockchain>>,
+// }
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
@@ -30,6 +35,8 @@ async fn main() -> anyhow::Result<()> {
         wallet: Wallet::new(),
     };
 
+    initialize(&mut blockchain);
+
     tracing_subscriber::fmt().with_max_level(tracing::Level::DEBUG).init();
     let domain = dotenvy::var("DOMAIN").expect("HSM Domain not found");
     let port = dotenvy::var("PORT").expect("HSM Port not found");
@@ -39,6 +46,8 @@ async fn main() -> anyhow::Result<()> {
         .allow_credentials(true)
         .allow_headers([AUTHORIZATION, ACCEPT, CONTENT_TYPE]);
 
+    let app_state = Arc::new(Mutex::new(blockchain));
+
     let app = Router::new()
         .merge(
             Router::new().route(
@@ -46,7 +55,9 @@ async fn main() -> anyhow::Result<()> {
                 get(|| async { "hello world" })
             )
         )
-        .merge(route::wallet_routes())
+        .merge(route::wallet_routes(app_state.clone()))
+        .merge(route::transaction_routes(app_state.clone()))
+        // .merge(route::wallet_routes(Arc::new(AppState { blockchain: blockchain.clone() })))
         .layer(cors);
     println!("🚀 Server started successfully, port {}", port);
     // println!("🚀 HSM Server started successfully, port {}", hsm_port);
@@ -56,8 +67,12 @@ async fn main() -> anyhow::Result<()> {
     });
     server1.await.unwrap();
 
-    let num_transactions = 29;
-    let transactions = generate_transactions(num_transactions, &mut blockchain);
+    Ok(())
+}
+
+fn initialize(blockchain: &mut Blockchain) {
+    let num_transactions = 10;
+    let transactions = generate_transactions(num_transactions, blockchain);
     for (_index, transaction) in transactions.iter().enumerate() {
         // println!("Transaction {}: {:?}", index + 1, transaction);
         blockchain.add_transaction(transaction.clone());
@@ -71,14 +86,19 @@ async fn main() -> anyhow::Result<()> {
 
     let mut msg = [0u8; 32];
     msg.copy_from_slice(&message_bytes);
+    let encode_message = hex::encode(msg);
+
+    blockchain.accounts.initialize(&w_pk1.to_string());
+    blockchain.accounts.initialize(&w_pk2.to_string());
 
     let mut transfer_from_w1_to_w2 = Transaction {
         from_address: w_pk1.to_string(),
         to_address: w_pk2.to_string(),
         pub_key: w_pk1,
-        msg,
+        msg: encode_message,
         amount: 30.0,
         signature: None,
+        status: transaction::TxStatus::PENDING,
     };
     transfer_from_w1_to_w2.sign_transaction(&w_sk1);
 
@@ -89,8 +109,6 @@ async fn main() -> anyhow::Result<()> {
 
     // Example of blockchain validation
     println!("Is chain valid? {}", blockchain.is_chain_valid());
-
-    Ok(())
 }
 
 fn generate_transactions(
@@ -117,9 +135,10 @@ fn generate_transactions(
             from_address: sender_pk.to_string(),
             to_address: receiver_pk.to_string(),
             pub_key: sender_pk,
-            msg,
+            msg: hex::encode(&msg),
             amount: 10.0,
             signature: None,
+            status: transaction::TxStatus::PENDING,
         };
 
         transaction.sign_transaction(&sender_sk);

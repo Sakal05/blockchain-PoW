@@ -1,11 +1,12 @@
 use serde::{ Deserialize, Serialize };
 use crate::block::Block;
 use crate::transaction::Transaction;
-use std::time::SystemTime;
+use std::{ time::SystemTime };
 use crate::account::Account;
 use crate::wallet::Wallet;
+use anyhow::{ Result, anyhow };
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Blockchain {
     pub chain: Vec<Block>,
     pub difficulty: usize,
@@ -39,33 +40,31 @@ impl Blockchain {
     }
 
     // Add transaction to pending transactions
-    pub fn add_transaction(&mut self, transaction: Transaction) {
-        // self.pending_transactions.push(transaction);
-        // let lastest_block = self.chain.last();
-
+    pub fn add_transaction(
+        &mut self,
+        transaction: Transaction
+    ) -> Result<Transaction, anyhow::Error> {
         if let Some(lastest_block) = self.chain.last_mut() {
-            if lastest_block.transactions.len() == lastest_block.block_capacity - 1 {
-                println!("go here");
-                // Mine the current block if it has reached its transaction capacity
-                lastest_block.mine_block_with_capacity(3, false);
-                lastest_block.transactions.push(transaction.clone());
+            // if lastest_block.transactions.len() == lastest_block.block_capacity - 1 {
+            println!("go here");
+            // Mine the current block if it has reached its transaction capacity
+            lastest_block.transactions.push(transaction.clone());
 
-                let clone_block = lastest_block.clone();
-                // Create a new block for the incoming transaction
-                let new_block = &mut self.create_new_block(clone_block);
-                self.chain.push(new_block.clone());
-                // println!("Should go to new block: {:?}", &transaction);
-            } else {
-                // println!("New tx: {:?}", &transaction);
-                // Add the transaction to the current block's transactions
-                lastest_block.transactions.push(transaction);
-            }
+            lastest_block.mine_block_with_capacity(3, false);
+
+            let clone_block = lastest_block.clone();
+            // Create a new block for the incoming transaction
+            let new_block = &mut self.create_new_block(clone_block);
+            self.chain.push(new_block.clone());
+            return Ok(transaction.clone());
         } else {
             // If there are no blocks in the chain, create the genesis block
             let genesis_block = Blockchain::create_genesis_block();
+            println!("GenesisBlock: {:?}", &genesis_block);
             self.chain.push(genesis_block);
             // Add the transaction to the genesis block's transactions
-            self.chain[0].transactions.push(transaction);
+            self.chain[0].transactions.push(transaction.clone());
+            return Ok(transaction.clone());
         }
     }
 
@@ -132,7 +131,18 @@ impl Blockchain {
         self.chain.clone().into_iter().collect()
     }
 
-    pub fn get_balance(&mut self, public_key: &String) -> &f64 {
+    pub fn get_all_tx(&self) -> Vec<Transaction> {
+        let mut txs: Vec<Transaction> = Vec::new();
+        for (i, block) in self.chain.iter().enumerate() {
+            println!("Block num: {}", i);
+            for tx in block.transactions.iter() {
+                txs.push(tx.clone());
+            }
+        }
+        txs
+    }
+
+    pub fn get_balance(&self, public_key: &String) -> &f64 {
         self.accounts.get_balance(public_key)
     }
 }

@@ -1,5 +1,6 @@
+use secp256k1::ecdsa::Signature;
 use serde::{ Deserialize, Serialize };
-use crate::transaction::Transaction;
+use crate::transaction::{ self, Transaction };
 use crate::blockchain::Blockchain;
 use sha256::digest;
 
@@ -28,19 +29,9 @@ impl Block {
         digest(data)
     }
 
-    // pub fn mine_block(&mut self, difficulty: usize) {
-    //     self.hash = self.calculate_hash(); // Initialize hash with the calculated hash
-    //     while &self.hash[..difficulty] != &"0".repeat(difficulty) {
-    //         // println!("block hash: {}", self.hash);
-    //         self.nonce += 1;
-    //         self.hash = self.calculate_hash(); // Recalculate hash with updated nonce
-    //     }
-    //     println!("Block mined: {}", self.hash);
-    // }
-
     pub fn execute_txn(&self, blockchain: &mut Blockchain) {
         self.transactions.iter().for_each(|txn| {
-            println!("Tx Detail: {:?}", txn);
+            // println!("Tx Detail: {:?}", txn);
             // Transfer amount
             blockchain.accounts.transfer(&txn.from_address, &txn.to_address, &txn.amount);
             println!("Sender balance: {:?}", blockchain.accounts.get_balance(&txn.from_address));
@@ -55,8 +46,12 @@ impl Block {
 
     pub fn mine_block_with_capacity(&mut self, difficulty: usize, force: bool) {
         println!("Start minning");
+        if self.mined {
+            return; // Block already mined, exit early
+        }
         // Check if the number of transactions has reached the block capacity
         if force {
+            println!("force: {}", force);
             if self.mined == false {
                 self.hash = self.calculate_hash(); // Initialize hash with the calculated hash
                 while &self.hash[..difficulty] != &"0".repeat(difficulty) {
@@ -65,18 +60,50 @@ impl Block {
                     self.hash = self.calculate_hash(); // Recalculate hash with updated nonce
                 }
                 println!("Block mined: {}", self.hash);
+                println!("Hash: {}", self.calculate_hash());
+                for transaction in &mut self.transactions {
+                    println!("Mined transaction: {:?}", &transaction);
+                    if !transaction.is_valid() {
+                        // println!("tx invalid: {:#?}", transaction);
+                        transaction.status = transaction::TxStatus::FAILED;
+                    } else {
+                        transaction.status = transaction::TxStatus::SUCCESS;
+                    }
+                }
+                self.mined = true;
+                self.hash = self.calculate_hash();
             }
         } else {
-            if self.transactions.len() == self.block_capacity && self.mined == false {
+            println!("force: {}", force);
+            // if self.transactions.len() == self.block_capacity && self.mined == false {
+            if self.mined == false {
+                // Initialize hash with the calculated hash
                 self.hash = self.calculate_hash(); // Initialize hash with the calculated hash
                 while &self.hash[..difficulty] != &"0".repeat(difficulty) {
-                    // println!("block hash: {}", self.hash);
-                    self.nonce += 1;
-                    self.hash = self.calculate_hash(); // Recalculate hash with updated nonce
+                    self.nonce += 1; // Increment the nonce
+                    // Recalculate the hash with updated nonce and any other block data
+                    self.hash = self.calculate_hash();
                 }
-                println!("Block mined: {}", self.hash);
-                // self.execute_txn(blockchain)
+                println!("Block mined: {:?}", self);
+                println!("Hash: {}", self.calculate_hash());
+
+                for transaction in &mut self.transactions {
+                    println!("Mined transaction: {:?}", &transaction);
+
+                    if !transaction.is_valid() {
+                        // println!("tx invalid: {:#?}", transaction);
+                        transaction.status = transaction::TxStatus::FAILED;
+                    } else {
+                        transaction.status = transaction::TxStatus::SUCCESS;
+                    }
+                }
+                self.mined = true;
+                self.hash = self.calculate_hash();
             }
         }
+    }
+
+    pub fn find_transaction_by_signature(&self, msg: &str) -> Option<&Transaction> {
+        self.transactions.iter().find(|txn| { txn.msg == msg })
     }
 }

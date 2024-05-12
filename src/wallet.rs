@@ -26,6 +26,7 @@ impl Wallet {
         let key_pair = Keypair::from_secret_key(&secp, &secret_key);
         println!("Public key: {}", public_key);
         println!("Your key pair is: {:?}", key_pair);
+
         (public_key, secret_key)
     }
 
