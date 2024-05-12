@@ -57,6 +57,7 @@ async fn main() -> anyhow::Result<()> {
         )
         .merge(route::wallet_routes(app_state.clone()))
         .merge(route::transaction_routes(app_state.clone()))
+        .merge(route::block_routes(app_state.clone()))
         // .merge(route::wallet_routes(Arc::new(AppState { blockchain: blockchain.clone() })))
         .layer(cors);
     println!("🚀 Server started successfully, port {}", port);

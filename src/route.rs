@@ -28,6 +28,30 @@ pub fn transaction_routes(app_state: Arc<Mutex<Blockchain>>) -> Router {
         .with_state(app_state)
 }
 
+pub fn block_routes(app_state: Arc<Mutex<Blockchain>>) -> Router {
+    Router::new()
+        .route("/blocks", get(get_all_blocks))
+        .route("/blocks/validate", get(validate_chain))
+        .with_state(app_state)
+}
+
+async fn validate_chain(State(data): State<Arc<Mutex<Blockchain>>>) -> Result<
+    impl IntoResponse,
+    (StatusCode, Json<serde_json::Value>)
+> {
+    let blockchain = data.lock().await;
+    let valid = blockchain.is_chain_valid();
+    let json_response =
+        serde_json::json!({
+            "status": "success",
+            "data": {
+                "is_valid": valid,
+                }
+        });
+
+    Ok((StatusCode::OK, Json(json_response)))
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct AddTransaction {
     to_address: String,
@@ -192,7 +216,7 @@ async fn create_wallet(State(mut data): State<Arc<Mutex<Blockchain>>>) -> Result
 
 async fn get_wallet_details(State(data): State<Arc<Mutex<Blockchain>>>) -> Result<
     impl IntoResponse,
-    StatusCode
+    (StatusCode, Json<serde_json::Value>)
 > {
     // let b = Arc::make_mut(&mut data);
     let mut blockchain = data.lock().await;
@@ -209,13 +233,19 @@ async fn get_wallet_details(State(data): State<Arc<Mutex<Blockchain>>>) -> Resul
 }
 
 async fn get_wallet_balance(
-    State(mut data): State<Arc<Mutex<Blockchain>>>,
+    State(data): State<Arc<Mutex<Blockchain>>>,
     Path(address): Path<String>
     // Json(payload): Json<String>
-) -> Result<impl IntoResponse, StatusCode> {
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     debug!("Received payload: {}", address);
-    let mut blockchain = data.lock().await;
+    let blockchain = data.lock().await;
 
+    if !blockchain.accounts.is_valid_address(&address) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": "Invalid Address"})),
+        ));
+    }
     // let (public_key,) = params.0;
     // let blockchain = state.0.borrow_mut(); // Borrow mutable reference to the blockchain
 
@@ -236,4 +266,18 @@ async fn get_wallet_balance(
     // } else {
     //     Err(StatusCode::NOT_FOUND)
     // }
+}
+
+async fn get_all_blocks(State(data): State<Arc<Mutex<Blockchain>>>) -> Result<
+    impl IntoResponse,
+    StatusCode
+> {
+    let blockchain = data.lock().await;
+    let blocks = blockchain.get_all_blocks();
+    let json_response =
+        serde_json::json!({
+            "status": "success",
+            "data": blocks
+        });
+    Ok(Json(json_response))
 }
