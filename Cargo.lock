@@ -27,6 +27,7 @@ dependencies = [
  "dotenvy",
  "getrandom",
  "hex",
+ "lazy_static",
  "rand",
  "rayon",
  "ring",

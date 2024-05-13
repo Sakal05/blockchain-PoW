@@ -1,6 +1,6 @@
 use serde::{ Deserialize, Serialize };
 use crate::block::Block;
-use crate::transaction::Transaction;
+use crate::transaction::{ self, Transaction };
 use std::time::SystemTime;
 use crate::account::Account;
 use crate::wallet::Wallet;
@@ -20,7 +20,7 @@ impl Blockchain {
     // Create genesis block
     pub fn create_genesis_block() -> Block {
         Block {
-            block_capacity: 10,
+            block_capacity: 4,
             timestamp: SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs(),
             transactions: vec![],
             previous_hash: "0".to_string(),
@@ -53,7 +53,7 @@ impl Blockchain {
             let prev_block = lastest_block.clone();
             // println!("Nonce: {}", &lastest_block.nonce);
             // Create a new block for the incoming transaction
-            let new_block = &mut self.create_new_block(prev_block);
+            let new_block = &mut self.create_new_block(&prev_block);
             self.chain.push(new_block.clone());
             return Ok(transaction.clone());
         } else {
@@ -70,6 +70,21 @@ impl Blockchain {
         }
     }
 
+    pub fn add_new_tx(&mut self, transaction: Transaction) -> Result<Transaction, anyhow::Error> {
+        if let Some(lastest_block) = self.chain.last_mut() {
+            if self.pending_transactions.len() < lastest_block.block_capacity {
+                println!("Add new");
+                self.pending_transactions.push(transaction.clone());
+                println!("Tx pending: {}", self.pending_transactions.len());
+                Ok(transaction.clone())
+            } else {
+                return Err(anyhow::Error::msg("Block is full, pls wait bruhhhh!"));
+            }
+        } else {
+            return Err(anyhow::Error::msg("Block is full"));
+        }
+    }
+
     // pub asycn fn start_mining_loop(&mut self, interval_seconds: u64) {
     //     let blockchain_ref = Arc::new(Mutex::new(self.clone()));
 
@@ -83,32 +98,40 @@ impl Blockchain {
     // }
 
     // Mine pending transactions into a new block
-    // fn mine_pending_transactions(&mut self) {
-    //     if self.pending_transactions.is_empty() {
-    //         return;
-    //     }
+    pub fn mine_pending_transactions(&mut self) {
+        if self.pending_transactions.is_empty() {
+            println!("No pending transactions");
+            return;
+        }
 
-    //     let latest_block = self.get_latest_block().unwrap_or_else(|| {
-    //         let genesis_block = Blockchain::create_genesis_block();
-    //         self.chain.push(genesis_block.clone());
-    //         genesis_block
-    //     });
+        if let Some(lastest_block) = self.chain.last_mut() {
+            // let mut new_block = &mut self.create_new_block(lastest_block.clone());
 
-    //     let mut new_block = self.create_new_block(latest_block.clone());
+            while
+                !self.pending_transactions.is_empty() &&
+                lastest_block.transactions.len() < lastest_block.block_capacity
+            {
+                let transaction = self.pending_transactions.remove(0);
+                lastest_block.transactions.push(transaction);
+            }
+            println!("Begin process");
+            lastest_block.mine_block_with_capacity(self.difficulty, &self.accounts, false);
+            // self.execute_txn(lastest_block);
+            // self.create_new_block(&lastest_block.clone());
+            // let new_block = self.create_new_block(&lastest_block.clone());
 
-    //     while
-    //         !self.pending_transactions.is_empty() &&
-    //         new_block.transactions.len() < new_block.block_capacity
-    //     {
-    //         let transaction = self.pending_transactions.remove(0);
-    //         new_block.transactions.push(transaction);
-    //     }
+            let cloned_block = lastest_block.clone(); // Clone the block to avoid borrowing issues
 
-    //     new_block.mine_block_with_capacity(self.difficulty, &self.accounts, false);
-    //     self.chain.push(new_block);
+            self.execute_txn(&cloned_block);
+            // self.chain.push(new_block);
+            // let new_block = self.create_new_block(lastest_block.clone());
 
-    //     println!("Block mined: {:?}", new_block);
-    // }
+            // println!("Block mined: {:?}", new_block);
+        } else {
+            let genesis_block = &mut Blockchain::create_genesis_block();
+            self.chain.push(genesis_block.clone());
+        }
+    }
 
     // Validate the integrity of the blockchain
     pub fn is_chain_valid(&self) -> bool {
@@ -141,19 +164,28 @@ impl Blockchain {
 
     pub fn execute_txn(&mut self, block: &Block) {
         block.transactions.iter().for_each(|txn| {
-            // Transfer amount
-            println!("Txn: {:?}", txn);
+            if txn.status.eq(&transaction::TxStatus::FAILED) {
+                return;
+            }
+
+            println!("Duma send tv hz: {:?}", &txn);
             self.accounts.transfer(&txn.from_address, &txn.to_address, &txn.amount);
-            // Transfer fee
-            println!("Balance after transfer: {}", self.accounts.get_balance(&txn.from_address));
-            println!("Balance after transfer: {}", self.accounts.get_balance(&txn.to_address));
         });
+
+        // block.transactions.iter().for_each(|txn| {
+        //     // Transfer amount
+        //     println!("Txn: {:?}", txn);
+        //     self.accounts.transfer(&txn.from_address, &txn.to_address, &txn.amount);
+        //     // Transfer fee
+        //     // println!("Balance after transfer: {}", self.accounts.get_balance(&txn.from_address));
+        //     // println!("Balance after transfer: {}", self.accounts.get_balance(&txn.to_address));
+        // });
     }
 
-    fn create_new_block(&mut self, block: Block) -> Block {
+    fn create_new_block(&mut self, block: &Block) -> Block {
         block.execute_txn(self);
         Block {
-            block_capacity: 10,
+            block_capacity: 4,
             timestamp: SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs(),
             transactions: vec![],
             previous_hash: self.get_latest_block().unwrap().hash.clone(),

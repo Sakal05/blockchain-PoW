@@ -48,14 +48,6 @@ impl Block {
         if force {
             // println!("force: {}", force);
             if self.mined == false {
-                self.hash = self.calculate_hash(); // Initialize hash with the calculated hash
-                while &self.hash[..difficulty] != &"0".repeat(difficulty) {
-                    // println!("block hash: {}", self.hash);
-                    self.nonce += 1;
-                    self.hash = self.calculate_hash(); // Recalculate hash with updated nonce
-                }
-                // println!("Block mined: {}", self.hash);
-                // println!("Hash: {}", self.calculate_hash());
                 for transaction in &mut self.transactions {
                     // println!("Mined transaction: {:?}", &transaction);
                     if transaction.is_valid(account) == false {
@@ -66,20 +58,30 @@ impl Block {
                         transaction.status = transaction::TxStatus::SUCCESS;
                     }
                 }
+                self.hash = self.calculate_hash(); // Initialize hash with the calculated hash
+                while &self.hash[..difficulty] != &"0".repeat(difficulty) {
+                    // println!("block hash: {}", self.hash);
+                    self.nonce += 1;
+                    self.hash = self.calculate_hash(); // Recalculate hash with updated nonce
+                }
+                // println!("Block mined: {}", self.hash);
+                // println!("Hash: {}", self.calculate_hash());
                 self.mined = true;
-                self.hash = self.calculate_hash();
+                // self.hash = self.calculate_hash();
             }
         } else {
             // if self.transactions.len() == self.block_capacity && self.mined == false {
             if self.mined == false {
                 // Initialize hash with the calculated hash
                 self.hash = self.calculate_hash(); // Initialize hash with the calculated hash
+                let mut i = 0;
                 while &self.hash[..difficulty] != &"0".repeat(difficulty) {
+                    i += 1;
+                    println!("Block mined {}: {:?}", i, self.hash);
                     self.nonce += 1; // Increment the nonce
                     // Recalculate the hash with updated nonce and any other block data
                     self.hash = self.calculate_hash();
                 }
-                // println!("Block mined: {:?}", self);
                 // println!("Hash: {}", self.calculate_hash());
 
                 for transaction in &mut self.transactions {
@@ -93,7 +95,7 @@ impl Block {
                     }
                 }
                 self.mined = true;
-                self.hash = self.calculate_hash();
+                // self.hash = self.calculate_hash();
                 println!("🧱 Mining block {:?}...⛏️", self.hash);
             }
         }
